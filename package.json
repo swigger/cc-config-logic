@@ -3,5 +3,6 @@
     "@sentry/node": "^10.5.0",
     "lodash": "^4.17.21",
     "zod": "^4.0.17"
-  }
+  },
+  "type": "module"
 }
