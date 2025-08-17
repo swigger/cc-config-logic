@@ -38,8 +38,8 @@ import {
 
 
 import pkg from "lodash";
-const EA = pkg.memoize;
-const $21 = pkg.cloneDeep;
+const memoize = pkg.memoize;
+const cloneDeep = pkg.cloneDeep;
 import * as dL from "@sentry/node";
 import * as h from "zod";
 
@@ -86,31 +86,31 @@ var CP = {
         cachedStatsigGates: {}
     };
 
-var dG0 = !1;
+var isConfigInitialized = !1;
 
-function WN2() {
-    if (dG0) return;
-    dG0 = !0, x_(vY(), fV, !0)
+function initializeConfigSystem() {
+    if (isConfigInitialized) return;
+    isConfigInitialized = !0, x_(vY(), fV, !0)
 }
 
-function Lk0() {
+function getCurrentWorkingDirectory() {
     return i2.cwd
 }
 
-function Fd1() {
-    return Lk0()
+function getCurrentWorkingDirectoryWrapper() {
+    return getCurrentWorkingDirectory()
 }
 
-function t0() {
+function getCurrentDirectoryWithFallback() {
     try {
-        return Fd1()
+        return getCurrentWorkingDirectoryWrapper()
     } catch {
-        return _9()
+        return getOriginalCwd()
     }
 }
 
-var jq1 = EA(() => {
-    let A = _9();
+var gitRepositoryRoot = memoize(() => {
+    let A = getOriginalCwd();
     try {
         return Si4(ki4("git rev-parse --show-toplevel", {
             cwd: A,
@@ -122,8 +122,8 @@ var jq1 = EA(() => {
     }
 });
 
-function UQ() {
-    let A = jq1(),
+function getProjectConfig() {
+    let A = gitRepositoryRoot(),
         B = x_(vY(), fV);
     if (!B.projects) return CP;
     let Q = B.projects[A] ?? CP;
@@ -248,7 +248,7 @@ function f40(A, B) {
 function ZG(A) {
     switch (A) {
         case "project": {
-            let B = s12(t0(), ".mcp.json");
+            let B = s12(getCurrentDirectoryWithFallback(), ".mcp.json");
             if (!j1().existsSync(B)) return {
                 servers: {},
                 errors: []
@@ -288,7 +288,7 @@ function ZG(A) {
             }
         }
         case "local": {
-            let B = UQ().mcpServers;
+            let B = getProjectConfig().mcpServers;
             if (!B) return {
                 servers: {},
                 errors: []
@@ -313,7 +313,7 @@ function ZG(A) {
 
 
 var In1 = ["macos", "wsl"],
-    L9 = EA(() => {
+    L9 = memoize(() => {
         try {
             if (process.platform === "darwin") return "macos";
             if (process.platform === "win32") return "windows";
@@ -454,7 +454,7 @@ function j1() {
     return Gv9
 }
 
-var Ha = EA((A) => {
+var Ha = memoize((A) => {
     let B = jo(),
         Q = H0(),
         Z = "",
@@ -588,7 +588,7 @@ function fF4() {
     return D81(mg(), "managed-settings.json")
 }
 
-function _9() {
+function getOriginalCwd() {
     return i2.originalCwd
 }
 
@@ -599,10 +599,10 @@ function Rq1(A) {
         case "policySettings":
         case "projectSettings":
         case "localSettings":
-            return Q81(_9());
+            return Q81(getOriginalCwd());
         case "flagSettings": {
             let B = Lm1();
-            return B ? R02(Q81(B)) : Q81(_9())
+            return B ? R02(Q81(B)) : Q81(getOriginalCwd())
         }
     }
 }
@@ -760,7 +760,7 @@ function e9() {
 }
 
 function x_(A, B, Q) {
-    if (!dG0) throw new Error("Config accessed before allowed.");
+    if (!isConfigInitialized) throw new Error("Config accessed before allowed.");
     let Z = j1();
     if (!Z.existsSync(A)) {
         let D = `${A}.backup`;
@@ -770,7 +770,7 @@ A backup file exists at: ${D}
 You can manually restore it by running: cp "${D}" "${A}"
 
 `);
-        return $21(B)
+        return cloneDeep(B)
     }
     try {
         let D = Z.readFileSync(A, {
@@ -779,7 +779,7 @@ You can manually restore it by running: cp "${D}" "${A}"
         try {
             let G = JSON.parse(D);
             return {
-                ...$21(B),
+                ...cloneDeep(B),
                 ...G
             }
         } catch (G) {
@@ -807,7 +807,7 @@ You can manually restore it by running: cp "${F}" "${A}"
             else process.stdout.write(`
 `)
         }
-        return $21(B)
+        return cloneDeep(B)
     }
 }
 class Rg extends Error {
@@ -845,7 +845,7 @@ function H0() {
     }
 }
 
-var P51 = EA(() => {
+var P51 = memoize(() => {
     if (process.platform === "darwin") {
         let B = I81();
         try {
@@ -1023,7 +1023,7 @@ function wK() {
     return r40()
 }
 
-var CZ = EA(() => {
+function getOAuthCredentials() {
     if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return {
         accessToken: process.env.CLAUDE_CODE_OAUTH_TOKEN,
         refreshToken: null,
@@ -1045,7 +1045,7 @@ var CZ = EA(() => {
     } catch (A) {
         return R1(A), null
     }
-});
+}
 
 function KE() {
     let A = IQ(process.env.CLAUDE_CODE_USE_BEDROCK) || IQ(process.env.CLAUDE_CODE_USE_VERTEX),
@@ -1057,11 +1057,11 @@ function KE() {
     return !(A || Z || (D === "ANTHROPIC_API_KEY" || D === "apiKeyHelper"))
 }
 
-function KB() {
+function isOAuthRequired() {
     if (!KE()) return !1;
-    return TT(CZ()?.scopes)
+    return TT(getOAuthCredentials()?.scopes)
 }
 console.log("========");
-WN2();
-console.log(CZ());
-console.log(KB());
+initializeConfigSystem();
+console.log(getOAuthCredentials());
+console.log(isOAuthRequired());
