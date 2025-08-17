@@ -20,7 +20,8 @@ import {
     homedir as ox9
 } from "os";
 import {
-    randomUUID as $k0
+    randomUUID as $k0,
+    createHash as cF4
 } from "crypto";
 import {
     homedir as $i4
@@ -845,6 +846,12 @@ function H0() {
     }
 }
 
+function I81(A = "") {
+    let B = e9(),
+        Z = !process.env.CLAUDE_CONFIG_DIR ? "" : `-${cF4("sha256").update(B).digest("hex").substring(0,8)}`;
+    return `Claude Code${A}${Z}`
+}
+
 var P51 = memoize(() => {
     if (process.platform === "darwin") {
         let B = I81();
@@ -1014,6 +1021,74 @@ function r40() {
     }
 }
 
+function pF4(A, B) {
+    return {
+        name: `${A.name}-with-${B.name}-fallback`,
+        read() {
+            let Q = A.read();
+            if (Q !== null && Q !== void 0) return Q;
+            return B.read() || {}
+        },
+        update(Q) {
+            let Z = A.read(),
+                D = A.update(Q);
+            if (D.success) {
+                if (Z === null) B.delete();
+                return D
+            }
+            let G = B.update(Q);
+            if (G.success) return {
+                success: !0,
+                warning: G.warning
+            };
+            return {
+                success: !1
+            }
+        },
+        delete() {
+            let Q = A.delete(),
+                Z = B.delete();
+            return Q || Z
+        }
+    }
+}
+
+function P02() {
+    let A = I81("-credentials");
+    return {
+        name: "keychain",
+        read() {
+            try {
+                let B = zZ(`security find-generic-password -a $USER -w -s "${A}"`);
+                if (B) return JSON.parse(B)
+            } catch (B) {
+                return null
+            }
+            return null
+        },
+        update(B) {
+            try {
+                let Z = JSON.stringify(B).replace(/"/g, "\\\""),
+                    D = `security add-generic-password -U -a $USER -s "${A}" -w "${Z}"`;
+                return zZ(D), {
+                    success: !0
+                }
+            } catch (Q) {
+                return {
+                    success: !1
+                }
+            }
+        },
+        delete() {
+            try {
+                return zZ(`security delete-generic-password -a $USER -s "${A}"`), !0
+            } catch (B) {
+                return !1
+            }
+        }
+    }
+}
+
 function wK() {
     if (process.platform === "darwin") {
         let A = P02(),
@@ -1063,5 +1138,6 @@ function isOAuthRequired() {
 }
 console.log("========");
 initializeConfigSystem();
+console.log(I81());
 console.log(getOAuthCredentials());
 console.log(isOAuthRequired());
